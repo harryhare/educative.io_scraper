@@ -14,7 +14,6 @@ import sys
 import base64
 import re
 
-
 OS_ROOT = os.path.expanduser('~')
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -116,7 +115,7 @@ def get_file_name_standard(driver, course_folder=False):
     title = driver.find_element(
         By.CSS_SELECTOR, title_selector).get_attribute('content')
     if course_name in title:
-        page_name = title[:len(title)-len(course_name)]
+        page_name = title[:len(title) - len(course_name)]
     else:
         page_name = title
 
@@ -164,7 +163,7 @@ def get_file_name(driver, course_folder=False):
         except:
             file_name = get_file_name_from_module(driver, course_folder)
     file_name = slugify(file_name, replacements=[
-                        ['+', 'plus']]).replace("-", " ")
+        ['+', 'plus']]).replace("-", " ")
     return re.sub(r'[:?|></]', replace_filename, file_name)
 
 
@@ -194,6 +193,16 @@ def remove_nav_tags(driver):
     delete_node(driver, nav_node)
     delete_node(driver, nav_node)
     # delete_node(driver, ask_a_question_xpath, True)
+    sleep(2)
+
+
+def remove_fixed_widgets(driver):
+    print("Removing Fixed Widgets from page")
+    nav_node = f"div[class*='fixed']"
+
+    delete_node(driver, nav_node)
+    delete_node(driver, nav_node)
+    delete_node(driver, nav_node)
     sleep(2)
 
 
@@ -240,7 +249,6 @@ def send_command(driver, cmd, params={}):
 
 
 def screenshot_as_cdp(driver, ele_to_screenshot):
-
     sleep(1)
     size, location = ele_to_screenshot.size, ele_to_screenshot.location
     width, height = size['width'], size['height']
@@ -307,6 +315,9 @@ def make_code_selectable(driver):
 
 
 def single_file_js_executer(driver):
+    print("default script timeout", driver.timeouts.script)
+    print("default timeout", driver.timeouts)
+    driver.set_script_timeout(120)
     return driver.execute_script('''
                                             const { content, title, filename } = await singlefile.getPageData({
                                                 removeImports: true,
@@ -344,6 +355,7 @@ def get_pagecontent_using_singleFile(driver, file_name, quiz_html):
             page_content = single_file_js_executer(driver)
         create_html_with_singleFile(file_name, page_content, quiz_html)
     except Exception:
+        #不能正确处理的视频,20,100,149
         take_screenshot(driver, file_name, quiz_html)
 
     print("HTML Page content taken.")
@@ -365,6 +377,24 @@ def show_hints_answer(driver):
         print("Show Hints Complete")
     else:
         print("No hints found")
+
+
+def show_questions_answer(driver):
+    print("Show Hints Function")
+    hints_button_selector = "div[role='button']"
+    action = ActionChains(driver)
+
+    hints_list = driver.find_elements(
+        By.CSS_SELECTOR, hints_button_selector)
+    if hints_list:
+        for idx in range(len(hints_list)):
+            hints_list = driver.find_elements(
+                By.CSS_SELECTOR, hints_button_selector)
+            action.move_to_element(hints_list[idx]).click().perform()
+            sleep(1)
+        print("Show Answers Complete")
+    else:
+        print("No Answers found")
 
 
 def click_using_driver_js(driver, selector):
@@ -481,7 +511,7 @@ def download_file(driver, element):
             sleep(2)
             original_file_name = check_file_in_dir(original_file_name)
             os.rename(original_file_name, slugify(hover_file_name,
-                      replacements=[['+', 'plus']]).replace("-", "."))
+                                                  replacements=[['+', 'plus']]).replace("-", "."))
 
 
 def download_code_manually(driver, code):
@@ -676,7 +706,8 @@ def find_nav_bar_buttons(driver, folder_index):
     code_container_selector = "div[class*='code-container']"
 
     return driver.find_elements(By.CSS_SELECTOR, code_container_selector)[
-        folder_index].find_element(By.XPATH, "../..").find_element(By.CSS_SELECTOR, nav_bar_tab_title).find_element(By.XPATH, "../../../../..").find_elements(By.CSS_SELECTOR, "button")
+        folder_index].find_element(By.XPATH, "../..").find_element(By.CSS_SELECTOR, nav_bar_tab_title).find_element(
+        By.XPATH, "../../../../..").find_elements(By.CSS_SELECTOR, "button")
 
 
 def code_container_clipboard_type(driver):
@@ -741,7 +772,8 @@ def widget_tab_container_function(container, driver):
             sleep(2)
             code_container_inside_tab = container.find_element(By.CSS_SELECTOR, widget_inner_container).find_elements(
                 By.CSS_SELECTOR, widget_code_selector)
-            output_containers_inside_tab = container.find_element(By.CSS_SELECTOR, widget_inner_container).find_elements(
+            output_containers_inside_tab = container.find_element(By.CSS_SELECTOR,
+                                                                  widget_inner_container).find_elements(
                 By.CSS_SELECTOR, output_selector)
             try:
                 if code_container_inside_tab:
@@ -1107,7 +1139,9 @@ def scrape_page(driver, file_index):
     file_name = str(file_index) + "-" + title
     driver.set_window_size(1920, get_current_height(driver))
     remove_nav_tags(driver)
+    remove_fixed_widgets(driver)
     show_hints_answer(driver)
+    show_questions_answer(driver)
     quiz_html += find_mark_down_quiz_containers(driver)
     show_code_box_answer(driver)
     open_slides(driver)
@@ -1172,10 +1206,10 @@ def load_webpage(driver, url):
     course_path = os.getcwd()
     while True:
         if not check_login(driver):
-            create_log(file_index-1, log_url, save_path, "Not logged in")
+            create_log(file_index - 1, log_url, save_path, "Not logged in")
             return False
         if not check_for_captcha(driver):
-            create_log(file_index-1, log_url, save_path, "Captcha detected")
+            create_log(file_index - 1, log_url, save_path, "Captcha detected")
             return False
         log_url = driver.current_url
         if not scrape_page(driver, file_index):
@@ -1280,7 +1314,8 @@ def create_base_config_dir():
 def select_config():
     global selected_config
     base_config_path = create_base_config_dir()
-    print("\nIf you are creating a new config, please select 1 in main menu to generate the new config and also you must login your educative account.\n")
+    print(
+        "\nIf you are creating a new config, please select 1 in main menu to generate the new config and also you must login your educative account.\n")
 
     if len(os.listdir(base_config_path)) > 1:
         for configs in os.listdir(base_config_path):
